@@ -178,7 +178,7 @@ mkdir build`
 			name := strings.TrimSpace(*output + "_" + os + "-" + arch + "_v" + version)
 
 			if os == "windows" {
-				name += ".exe"
+				*output += ".exe"
 			}
 
 			if *zipFiles {
