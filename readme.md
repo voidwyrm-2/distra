@@ -3,7 +3,7 @@ An application to make it easier to build Go executables of multiple platforms f
 
 ## Installation
 
-You can install Distra with either `go install` or from the [releases](<https://github.com/voidwyrm-2/distra/releases/latest>)
+You can install Distra with either `go install github.com/voidwyrm-2/distra@latest` or from the [releases](<https://github.com/voidwyrm-2/distra/releases/latest>)
 
 ## Usage
 
