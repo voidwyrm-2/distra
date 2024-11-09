@@ -2,13 +2,43 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
+
+/*
+type zipFile struct {
+	name, content string
+}
+
+func nzf(name, content string) zipFile {
+	return zipFile{name: name, content: content}
+}
+
+func zipContent(files ...zipFile) error {
+	buf := new(bytes.Buffer)
+	w := zip.NewWriter(buf)
+
+	for _, file := range files {
+		f, err := w.Create(file.name)
+		if err != nil {
+			return err
+		}
+		_, err = f.Write([]byte(file.content))
+		if err != nil {
+			return err
+		}
+	}
+
+	return w.Close()
+}
+*/
 
 func writeFile(filename string, data string) error {
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0o644)

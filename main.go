@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"path"
 	"slices"
 	"strings"
 
@@ -83,13 +84,23 @@ func main() {
 
 	generateOSArch(strings.TrimSpace(oa))
 
+	outputDefault := func() string {
+		p := strings.Split(rcom("pwd"), "/")
+		return strings.TrimSpace(p[len(p)-1])
+	}()
+
 	parser := argparse.NewParser("distra", "A distribution builder for Go")
 
-	version := parser.Flag("v", "version", &argparse.Options{Required: false, Help: "Shows the current Distra version"})
+	showVersion := parser.Flag("v", "version", &argparse.Options{Required: false, Help: "Shows the current Distra version"})
 	listos := parser.Flag("", "listos", &argparse.Options{Required: false, Help: "Lists the available operating systems to build for"})
 	listarch := parser.List("", "listarch", &argparse.Options{Required: false, Help: "Lists the available architectures for the given operating systems"})
-	output := parser.String("o", "output", &argparse.Options{Required: false, Help: "The output name to append the OS and arch onto in the format [name]_[os]-[arch]"})
+	output := parser.String("o", "output", &argparse.Options{Required: false, Help: "The output name to append the OS and arch onto in the format [name]_[os]-[arch]", Default: outputDefault})
+	buildDir := parser.String("b", "build", &argparse.Options{Required: false, Help: "The Go folder to build instead of the current", Default: "."})
 	buildAll := parser.Flag("", "build-all", &argparse.Options{Required: false, Help: "Builds all available operating systems and architectures"})
+	zipFiles := parser.Flag("z", "zip", &argparse.Options{Required: false, Help: "Creates zip files named with the format [name]_[os]-[arch] with an executable inside"})
+	emitSHF := parser.Flag("e", "emit-sh", &argparse.Options{Required: false, Help: "Stops the temporary compilation shellscript file from being run and deleted"})
+
+	*buildDir = path.Clean(strings.TrimSpace(*buildDir))
 
 	osFlags := map[string]*[]string{}
 
@@ -102,7 +113,7 @@ func main() {
 		return
 	}
 
-	if *version {
+	if *showVersion {
 		fmt.Println(version)
 		return
 	}
@@ -156,12 +167,6 @@ fi
 mkdir build`
 
 	*output = strings.TrimSpace(*output)
-	if *output != "" {
-		*output += "_"
-	} else {
-		p := strings.Split(rcom("pwd"), "/")
-		*output += strings.TrimSpace(p[len(p)-1]) + "_"
-	}
 
 	for os, archs := range osFlags {
 		if slices.Contains(*archs, "all") {
@@ -170,12 +175,25 @@ mkdir build`
 		}
 
 		for _, arch := range *archs {
-			name := *output + os + "-" + arch
+			name := strings.TrimSpace(*output + "_" + os + "-" + arch + "_v" + version)
+
 			if os == "windows" {
 				name += ".exe"
 			}
 
-			shFile += fmt.Sprintf("\nGOOS=%s GOARCH=%s go build -o build/%s .", os, arch, name)
+			if *zipFiles {
+				shFile += fmt.Sprintf(`
+GOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'
+if [ "$?" = "0" ]; then
+recall="$(pwd)"
+cd '%s/build'
+zip -r '%s.zip' '%s'
+rm '%s'
+cd "$recall"
+fi`, os, arch, *buildDir, *output, *buildDir, *buildDir, name, *output, *output)
+			} else {
+				shFile += fmt.Sprintf("\nGOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'", os, arch, *buildDir, name, *buildDir)
+			}
 		}
 	}
 
@@ -186,6 +204,8 @@ mkdir build`
 		os.Exit(1)
 	}
 
-	rcom("sh", shfname)
-	rcom("rm", shfname)
+	if !*emitSHF {
+		rcom("sh", shfname)
+		rcom("rm", shfname)
+	}
 }
