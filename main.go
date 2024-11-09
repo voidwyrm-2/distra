@@ -176,8 +176,7 @@ mkdir build`
 
 		for _, arch := range *archs {
 			name := strings.TrimSpace(*output + "_" + os + "-" + arch + "_v" + version)
-
-			if os == "windows" {
+			if os == "windows" && !strings.HasSuffix(*output, ".exe") {
 				*output += ".exe"
 			}
 
