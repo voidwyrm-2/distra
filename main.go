@@ -64,7 +64,7 @@ func main() {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		} else if verLocal.Compare(verRemote) == -1 {
-			fmt.Printf("A new version of Distra is available!(%s -> %s)\nrun `go install github.com/voidwyrm-2/distra@latest` to install it\n", verLocal.Fmt(), verRemote.Fmt())
+			fmt.Printf("A new version of Distra is available!(%s -> %s)\nrun `go install github.com/voidwyrm-2/distra` to install it\n", verLocal.Fmt(), verRemote.Fmt())
 			return
 		}
 	}
