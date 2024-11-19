@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"errors"
 	"fmt"
@@ -39,6 +40,24 @@ func zipContent(files ...zipFile) error {
 	return w.Close()
 }
 */
+
+func readFile(fileName string) (string, error) {
+	file, err := os.Open(fileName)
+	if err != nil {
+		return "", err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	content := ""
+	for scanner.Scan() {
+		content += scanner.Text() + "\n"
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return content, nil
+}
 
 func writeFile(filename string, data string) error {
 	file, err := os.OpenFile(filename, os.O_WRONLY|os.O_CREATE, 0o644)

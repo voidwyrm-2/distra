@@ -7,7 +7,7 @@ You can install Distra with either `go install github.com/voidwyrm-2/distra@late
 
 ## Usage
 
-Distra requires [Go](<https://go.dev>) to be installed to be used
+Distra requires [Go](<https://go.dev>) to be installed
 
 > **Note:** on Windows, you have to use Subsystem Linux
 
@@ -18,3 +18,17 @@ Distra requires [Go](<https://go.dev>) to be installed to be used
     > example: `distra --listarch linux --listarch windows`
 * OS flags: auto-generated flags which correspond to each operating systems that can be built for
     > example: `distra --windows amd64 --windows arm --linux arm --js wasm`
+
+### Distrafile
+
+Distrafile is a Makefile-like system for easier project building
+
+Each Distrafile looks like this
+```
+windows/amd64
+windows/arm
+linux/arm
+js/wasm
+...
+```
+Each line has a OS and architecture target in the format `[os]/[arch]`

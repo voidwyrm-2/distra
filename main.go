@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"os"
 	"path"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -14,8 +15,18 @@ import (
 
 var osArch = map[string][]string{}
 
-func generateOSArch(oa string) {
-	for _, l := range strings.Split(oa, "\n") {
+func generateOSArch(oa string) error {
+	valid, err := regexp.Compile(`[a-z0-9]*/[a-z0-9]*`)
+	if err != nil {
+		return err
+	}
+	for ln, l := range strings.Split(oa, "\n") {
+		l = strings.TrimSpace(l)
+		if l == "" {
+			continue
+		} else if valid.Find([]byte(l)) == nil {
+			return fmt.Errorf("error on line %d: '%s' is an invalid [os]/[arch] pairing", ln+1, l)
+		}
 		s := strings.Split(l, "/")
 		os, arch := s[0], s[1]
 		if _, ok := osArch[os]; !ok {
@@ -23,6 +34,7 @@ func generateOSArch(oa string) {
 		}
 		osArch[os] = append(osArch[os], arch)
 	}
+	return nil
 }
 
 func osList() []string {
@@ -95,12 +107,21 @@ func main() {
 	listos := parser.Flag("", "listos", &argparse.Options{Required: false, Help: "Lists the available operating systems to build for"})
 	listarch := parser.List("", "listarch", &argparse.Options{Required: false, Help: "Lists the available architectures for the given operating systems"})
 	output := parser.String("o", "output", &argparse.Options{Required: false, Help: "The output name to append the OS and arch onto in the format [name]_[os]-[arch]", Default: outputDefault})
-	buildDir := parser.String("b", "build", &argparse.Options{Required: false, Help: "The Go folder to build instead of the current", Default: "."})
+	buildDir := parser.String("b", "build", &argparse.Options{Required: false, Help: "The Go folder to build instead of the current one", Default: "."})
 	buildAll := parser.Flag("", "build-all", &argparse.Options{Required: false, Help: "Builds all available operating systems and architectures"})
 	zipFiles := parser.Flag("z", "zip", &argparse.Options{Required: false, Help: "Creates zip files named with the format [name]_[os]-[arch] with an executable inside"})
 	emitSHF := parser.Flag("e", "emit-sh", &argparse.Options{Required: false, Help: "Stops the temporary compilation shellscript file from being run and deleted"})
+	file := parser.String("f", "file", &argparse.Options{Required: false, Help: "The path to a folder containing a Distrafile", Default: "./"})
 
 	*buildDir = path.Clean(strings.TrimSpace(*buildDir))
+	*file = strings.TrimSpace(*file)
+	if *file != "" {
+		if (*file)[len(*file)-1] != '/' {
+			*file += "/"
+		}
+		*file += "Distrafile"
+		*file = path.Clean(*file)
+	}
 
 	osFlags := map[string]*[]string{}
 
@@ -142,6 +163,18 @@ func main() {
 			fmt.Println("'"+o+"':", strings.Join(osArch[o], ", "))
 		}
 		return
+	}
+
+	if *file != "" {
+		if content, err := readFile(*file); err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		} else {
+			if err := generateOSArch(content); err != nil {
+				fmt.Println(err.Error())
+				os.Exit(1)
+			}
+		}
 	}
 
 	if *buildAll {
