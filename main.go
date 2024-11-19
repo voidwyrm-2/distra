@@ -15,26 +15,27 @@ import (
 
 var osArch = map[string][]string{}
 
-func generateOSArch(oa string) error {
+func generateOSArch(oa string) (map[string][]string, error) {
+	oaMap := map[string][]string{}
 	valid, err := regexp.Compile(`[a-z0-9]*/[a-z0-9]*`)
 	if err != nil {
-		return err
+		return map[string][]string{}, err
 	}
 	for ln, l := range strings.Split(oa, "\n") {
 		l = strings.TrimSpace(l)
 		if l == "" {
 			continue
 		} else if valid.Find([]byte(l)) == nil {
-			return fmt.Errorf("error on line %d: '%s' is an invalid [os]/[arch] pairing", ln+1, l)
+			return map[string][]string{}, fmt.Errorf("error on line %d: '%s' is an invalid [os]/[arch] pairing", ln+1, l)
 		}
 		s := strings.Split(l, "/")
 		os, arch := s[0], s[1]
-		if _, ok := osArch[os]; !ok {
-			osArch[os] = []string{}
+		if _, ok := oaMap[os]; !ok {
+			oaMap[os] = []string{}
 		}
-		osArch[os] = append(osArch[os], arch)
+		oaMap[os] = append(oaMap[os], arch)
 	}
-	return nil
+	return oaMap, nil
 }
 
 func osList() []string {
@@ -81,25 +82,29 @@ func main() {
 		}
 	}
 
-	oa, se, err := runCommand("go", "tool", "dist", "list")
-	if err != nil {
-		fmt.Println(err.Error())
-		os.Exit(1)
-	} else if se != "" {
-		if strings.Contains(se, "not found") {
-			fmt.Println("the Go executable is either not installed or not on your path; in order to use this tool, please install Go or add it to your path")
-		} else {
-			fmt.Println(se)
+	{
+		oa, se, err := runCommand("go", "tool", "dist", "list")
+		if err != nil {
+			fmt.Println(err.Error())
+			os.Exit(1)
+		} else if se != "" {
+			if strings.Contains(se, "not found") {
+				fmt.Println("the Go executable is either not installed or not on your path; in order to use this tool, please install Go or add it to your path")
+			} else {
+				fmt.Println(se)
+			}
+			os.Exit(1)
 		}
-		os.Exit(1)
-	}
 
-	generateOSArch(strings.TrimSpace(oa))
+		osArch, _ = generateOSArch(strings.TrimSpace(oa))
+	}
 
 	outputDefault := func() string {
 		p := strings.Split(rcom("pwd"), "/")
 		return strings.TrimSpace(p[len(p)-1])
 	}()
+
+	fileNotGivenDef := fmt.Sprintf("[%d%d%d%d]", rand.Intn(10), rand.Intn(10), rand.Intn(10), rand.Intn(10))
 
 	parser := argparse.NewParser("distra", "A distribution builder for Go")
 
@@ -111,17 +116,8 @@ func main() {
 	buildAll := parser.Flag("", "build-all", &argparse.Options{Required: false, Help: "Builds all available operating systems and architectures"})
 	zipFiles := parser.Flag("z", "zip", &argparse.Options{Required: false, Help: "Creates zip files named with the format [name]_[os]-[arch] with an executable inside"})
 	emitSHF := parser.Flag("e", "emit-sh", &argparse.Options{Required: false, Help: "Stops the temporary compilation shellscript file from being run and deleted"})
-	file := parser.String("f", "file", &argparse.Options{Required: false, Help: "The path to a folder containing a Distrafile", Default: "./"})
-
-	*buildDir = path.Clean(strings.TrimSpace(*buildDir))
-	*file = strings.TrimSpace(*file)
-	if *file != "" {
-		if (*file)[len(*file)-1] != '/' {
-			*file += "/"
-		}
-		*file += "Distrafile"
-		*file = path.Clean(*file)
-	}
+	file := parser.String("f", "file", &argparse.Options{Required: false, Help: "The path to a folder containing a Distrafile", Default: fileNotGivenDef})
+	emitToDistrafile := parser.Flag("", "emit-distrafile", &argparse.Options{Required: false, Help: "emits the given os/arch build flags to a Distrafile in the current directory"})
 
 	osFlags := map[string]*[]string{}
 
@@ -165,16 +161,33 @@ func main() {
 		return
 	}
 
-	if *file != "" {
+	*buildDir = path.Clean(strings.TrimSpace(*buildDir))
+	if *file != fileNotGivenDef {
+		*file = path.Clean(strings.TrimSpace(*file))
+		if (*file)[len(*file)-1] != '/' {
+			*file += "/"
+		}
+		*file += "Distrafile"
+	}
+
+	if *file != fileNotGivenDef && !*emitToDistrafile && !*buildAll {
 		if content, err := readFile(*file); err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
 		} else {
-			if err := generateOSArch(content); err != nil {
+			if oam, err := generateOSArch(content); err != nil {
 				fmt.Println(err.Error())
 				os.Exit(1)
+			} else {
+				for k, v := range oam {
+					osFlags[k] = &v
+				}
 			}
 		}
+	}
+
+	if len(osFlags) == 0 && !*buildAll {
+		return
 	}
 
 	if *buildAll {
@@ -192,6 +205,28 @@ func main() {
 				}
 			}
 		}
+	}
+
+	if *emitToDistrafile && *file == fileNotGivenDef {
+		fmt.Println("generating Distrafile...")
+		pairs := []string{}
+		fmt.Println("formatting os/arch pairs...")
+		osi := 1
+		for k, v := range osFlags {
+			for i, ar := range *v {
+				pairs = append(pairs, k+"/"+ar)
+				fmt.Printf("formatted %d out of %d architectures of os %d\n", i+1, len(*v), osi)
+			}
+			fmt.Printf("formatted %d of %d os\n", osi, len(osFlags))
+			osi++
+		}
+
+		fmt.Println("writing Distrafile...")
+		if err := writeFile("./Distrafile", strings.Join(pairs, "\n")); err != nil {
+			fmt.Println(err.Error())
+		}
+		fmt.Println("file written")
+		return
 	}
 
 	shFile := `if [ -d build ] || [ -f build ]; then
@@ -213,31 +248,43 @@ mkdir build`
 				*output += ".exe"
 			}
 
+			fmt.Printf("generating build for %s/%s...\n", os, arch)
 			if *zipFiles {
 				shFile += fmt.Sprintf(`
+echo 'building %s/%s...'
 GOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'
+echo 'built %s/%s'
 if [ "$?" = "0" ]; then
 recall="$(pwd)"
 cd '%s/build'
+echo 'zipping %s/%s...'
 zip -r '%s.zip' '%s'
+echo 'zipped %s/%s'
 rm '%s'
 cd "$recall"
-fi`, os, arch, *buildDir, *output, *buildDir, *buildDir, name, *output, *output)
+fi`, os, arch, os, arch, *buildDir, *output, *buildDir, os, arch, *buildDir, os, arch, name, *output, os, arch, *output)
 			} else {
-				shFile += fmt.Sprintf("\nGOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'", os, arch, *buildDir, name, *buildDir)
+				shFile += fmt.Sprintf("\necho 'building %s/%s...'\nGOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'\necho 'built %s/%s'", os, arch, os, arch, *buildDir, name, *buildDir, os, arch)
 			}
+			fmt.Printf("build for %s/%s generated\n", os, arch)
 		}
 	}
 
 	shfname := fmt.Sprintf("__%d%d%d%d__.sh", rand.Intn(9), rand.Intn(9), rand.Intn(9), rand.Intn(9))
+	fmt.Println("generated shellfile name")
 
+	fmt.Println("writing shellfile...")
 	if err := writeFile(shfname, shFile); err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
 	}
+	fmt.Println("shellfile written")
 
 	if !*emitSHF {
+		fmt.Println("running shellfile...")
 		rcom("sh", shfname)
+		fmt.Println("shellfile completed, deleting...")
 		rcom("rm", shfname)
+		fmt.Println("shellfile deleted")
 	}
 }
