@@ -170,6 +170,9 @@ func (v Version) Compare(ver Version) int {
 func GetDistraVersion() (string, error) {
 	res, err := http.Get("https://raw.githubusercontent.com/voidwyrm-2/distra/refs/heads/main/version.txt")
 	if err != nil {
+		if err.Error() == "Get \"https://raw.githubusercontent.com/voidwyrm-2/distra/refs/heads/main/version.txt\": dial tcp: lookup raw.githubusercontent.com: no such host" {
+			return "", errors.New("")
+		}
 		return "", err
 	}
 
@@ -178,7 +181,7 @@ func GetDistraVersion() (string, error) {
 	if err != nil {
 		return "", err
 	} else if string(version) == "404: Not Found" {
-		return "", err
+		return "", errors.New("404: Not Found")
 	}
 
 	return string(version), nil

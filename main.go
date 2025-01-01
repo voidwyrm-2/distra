@@ -66,10 +66,10 @@ func capitalize(s string) string {
 }
 
 func main() {
-	if vr, err := GetDistraVersion(); err != nil {
+	if vr, err := GetDistraVersion(); err != nil && err.Error() != "" {
 		fmt.Println(err.Error())
 		os.Exit(1)
-	} else {
+	} else if err != nil {
 		if verRemote, err := NewVersionFromVersionString(vr); err != nil {
 			fmt.Println(err.Error())
 			os.Exit(1)
