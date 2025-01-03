@@ -236,6 +236,11 @@ mkdir build`
 
 	*output = strings.TrimSpace(*output)
 
+	appVersion, err := readFile("version.txt")
+	if err == nil {
+		appVersion = "_v" + appVersion
+	}
+
 	for os, archs := range osFlags {
 		if slices.Contains(*archs, "all") {
 			osa := osArch[os]
@@ -243,7 +248,7 @@ mkdir build`
 		}
 
 		for _, arch := range *archs {
-			name := strings.TrimSpace(*output + "_" + os + "-" + arch + "_v" + version)
+			name := strings.TrimSpace(*output + "_" + os + "-" + arch + appVersion)
 			if os == "windows" && !strings.HasSuffix(*output, ".exe") {
 				name += ".exe"
 			}
