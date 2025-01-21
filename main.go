@@ -250,7 +250,7 @@ mkdir build`
 		for _, arch := range *archs {
 			name := strings.TrimSpace(*output + "_" + os + "-" + arch + appVersion)
 			if os == "windows" && !strings.HasSuffix(*output, ".exe") {
-				name += ".exe"
+				*output += ".exe"
 			}
 
 			fmt.Printf("generating build for %s/%s...\n", os, arch)
