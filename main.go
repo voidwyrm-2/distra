@@ -248,9 +248,10 @@ mkdir build`
 		}
 
 		for _, arch := range *archs {
-			name := strings.TrimSpace(*output + "_" + os + "-" + arch + appVersion)
-			if os == "windows" && !strings.HasSuffix(*output, ".exe") {
-				*output += ".exe"
+			finalOutput := *output
+			name := strings.TrimSpace(finalOutput + "_" + os + "-" + arch + appVersion)
+			if os == "windows" && !strings.HasSuffix(finalOutput, ".exe") {
+				finalOutput += ".exe"
 			}
 
 			fmt.Printf("generating build for %s/%s...\n", os, arch)
@@ -267,7 +268,7 @@ zip -r '%s.zip' '%s'
 echo 'zipped %s/%s'
 rm '%s'
 cd "$recall"
-fi`, os, arch, os, arch, *buildDir, *output, *buildDir, os, arch, *buildDir, os, arch, name, *output, os, arch, *output)
+fi`, os, arch, os, arch, *buildDir, finalOutput, *buildDir, os, arch, *buildDir, os, arch, name, finalOutput, os, arch, finalOutput)
 			} else {
 				shFile += fmt.Sprintf("\necho 'building %s/%s...'\nGOOS=%s GOARCH=%s go build -o '%s/build/%s' '%s'\necho 'built %s/%s'", os, arch, os, arch, *buildDir, name, *buildDir, os, arch)
 			}
